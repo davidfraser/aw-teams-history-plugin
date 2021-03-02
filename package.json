@@ -12,8 +12,8 @@
   "dependencies": {
   },
   "devDependencies": {
-    "webpack-cli": "4.5.0",
     "webpack": "4.46.0",
+    "webpack-cli": "4.5.0",
     "webpack-userscript": "2.5.6"
   }
 }
