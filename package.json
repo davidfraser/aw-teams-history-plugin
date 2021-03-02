@@ -5,6 +5,10 @@
   "main": "index.js",
   "author": "David Fraser <david.fraser@hexagon.com>",
   "license": "MIT",
+  "scripts": {
+    "build": "node_modules/.bin/webpack.cmd",
+    "clip": "npm run build && (type dist\\main.user.js | clip) && echo now paste clipboard into TamperMonkey"
+  },
   "dependencies": {
   },
   "devDependencies": {
