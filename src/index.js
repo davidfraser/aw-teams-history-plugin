@@ -1,13 +1,3 @@
-// ==UserScript==
-// @name         Microsoft Teams Call History Export
-// @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  export call history from Microsoft Teams
-// @author       You
-// @match        https://teams.microsoft.com/*
-// @grant        none
-// ==/UserScript==
-
 (function() {
     'use strict';
     const testing = true;
