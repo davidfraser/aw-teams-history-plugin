@@ -22,7 +22,6 @@
         var items = document.querySelectorAll("all-call-list div.td-call-list-container div.item-row");
         if (items.length >= 1) {
             for (var item of items) {
-                console.log(item);
                 var displayName = getText(item, "div.display-name > span");
                 var callType = getText(item, "div.call-type > span");
                 var callLength = getText(item, "div.length > span");
