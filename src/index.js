@@ -73,6 +73,7 @@
         }
     };
     function detectCalls() {
+        window.location.href = "https://teams.microsoft.com/_#/calls/all-calls";
         var items = document.querySelectorAll("all-call-list div.td-call-list-container div.item-row");
         var calls = [];
         if (items.length >= 1) {
@@ -90,7 +91,5 @@
             setTimeout(detectCalls, 200);
         }
     }
-    window.addEventListener('load', function() {
-        detectCalls();
-    });
+    detectCalls();
 })();
