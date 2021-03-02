@@ -4,7 +4,9 @@ module.exports = {
   plugins: [
     new WebpackUserscript({
         headers: {
-            match: "https://teams.microsoft.com/*"
+            match: "https://teams.microsoft.com/*",
+            grant: "GM_xmlhttpRequest",
+            connect: "*"
         }
     })
   ]
