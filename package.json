@@ -1,0 +1,8 @@
+{
+  "name": "aw-teams-history-plugin",
+  "version": "0.1.0",
+  "description": "Userscript to retrieve teams history information and feed it to ActivityWatch buckets",
+  "main": "index.js",
+  "author": "David Fraser <david.fraser@hexagon.com>",
+  "license": "MIT"
+}
