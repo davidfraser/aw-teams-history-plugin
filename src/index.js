@@ -4,6 +4,7 @@
     const baseURL = testing ? 'http://localhost:5666' : 'http://localhost:5600';
     const reTime = /^(?:(?<h>[0-9]+)h\s*)?(?:(?<m>[0-9]+)m\s*)?(?:(?<s>[0-9]+)s\s*)?$/;
     const reName = /^(?<s>[A-Z]+\s*)(?<f>[A-Za-z]+\s*)$/;
+    const reDate = /^(?<title>.*), (?<start>.* [AP]M) to (?<end>.* [AP]M), (?:(?<location>location: .*), )?(?<info>.*)$/
     function getText(item, selector) {
         var spanNode = item.querySelector(selector);
         return spanNode ? spanNode.innerText : null;
@@ -87,9 +88,65 @@
             console.log("Found", calls);
             createBucket("aw-watcher-teams");
             postEvents("aw-watcher-teams", calls);
+            detectMeetings();
         } else {
             setTimeout(detectCalls, 200);
         }
     }
+    function parseDate(dateText) {
+        // parses a date with no year and gets the closest actual date
+        const now = new Date();
+        const year = now.getFullYear();
+        const date = new Date(dateText);
+        date.setFullYear(year);
+        if (now - date < -180*24*3600*1000) {
+            date.setFullYear(year-1);
+        }
+        return date
+    };
+    function parseMeetingDescription(description) {
+        const d = description.match(reDate);
+        if (d && d.groups) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const start = parseDate(d.groups.start), end = parseDate(d.groups.end);
+            const duration = end - start;
+            if (end >= new Date()) {
+                // ignore dates past the present, you probably haven't had those meetings yet
+                return null;
+            }
+            return {
+                timestamp: start.toISOString(),
+                duration: duration/1000,
+                data: {
+                    title: d.groups.title,
+                    info: d.groups.info,
+                }
+            }
+        } else {
+            console.warn(`Could not parse event ${description}`);
+            return null;
+        }
+    };
+    function detectMeetings() {
+        window.location.href = "https://teams.microsoft.com/_#/calendarv2";
+        var eventCards = document.querySelectorAll("div[aria-label='Calendar grid view'] div[aria-label][class*='components-calendar-event-card']");
+        var events = [];
+        if (eventCards.length >= 1) {
+            for (var i = 0; i < eventCards.length; i++) {
+                var eventCard = eventCards[i];
+                var description = eventCard.getAttribute('aria-label');
+                const event = parseMeetingDescription(description);
+                if (event != null) {
+                    events.push(event)
+                }
+            }
+            console.log("Found", events);
+            createBucket("aw-watcher-teams");
+            postEvents("aw-watcher-teams", events);
+        } else {
+            setTimeout(detectMeetings, 200);
+        }
+    };
     detectCalls();
 })();
