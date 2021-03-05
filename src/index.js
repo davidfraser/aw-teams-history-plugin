@@ -75,23 +75,32 @@
     };
     function detectCalls() {
         window.location.href = "https://teams.microsoft.com/_#/calls/all-calls";
+        console.log("Navigating to calls screen...")
         var items = document.querySelectorAll("all-call-list div.td-call-list-container div.item-row");
-        var calls = [];
-        if (items.length >= 1) {
-            for (var item of items) {
-                var displayName = getText(item, "div.display-name > span");
-                var callType = getText(item, "div.call-type > span");
-                var callLength = getText(item, "div.length > span");
-                var callDate = getTitle(item, "div.date > span");
-                calls.push(textToCall({displayName, callType, callLength, callDate}));
+        function gatherCalls(resolve, reject) {
+            console.log("Looking for call items...");
+            var calls = [];
+            if (items.length >= 1) {
+                console.log("Retrieving calls...");
+                for (var item of items) {
+                    var displayName = getText(item, "div.display-name > span");
+                    var callType = getText(item, "div.call-type > span");
+                    var callLength = getText(item, "div.length > span");
+                    var callDate = getTitle(item, "div.date > span");
+                    calls.push(textToCall({displayName, callType, callLength, callDate}));
+                }
+                console.log("Found calls to send to ActivityWatch:", calls);
+                console.log("Completed call detection");
+                resolve(calls);
+            } else {
+                setTimeout(() => {
+                    gatherCalls(resolve, reject);
+                }, 200);
             }
-            console.log("Found", calls);
-            createBucket("aw-watcher-teams");
-            postEvents("aw-watcher-teams", calls);
-            detectMeetings();
-        } else {
-            setTimeout(detectCalls, 200);
         }
+        return new Promise((resolve, reject) => {
+            gatherCalls(resolve, reject);
+        });
     }
     function parseDate(dateText) {
         // parses a date with no year and gets the closest actual date
@@ -128,25 +137,100 @@
             return null;
         }
     };
-    function detectMeetings() {
-        window.location.href = "https://teams.microsoft.com/_#/calendarv2";
-        var eventCards = document.querySelectorAll("div[aria-label='Calendar grid view'] div[aria-label][class*='components-calendar-event-card']");
-        var events = [];
-        if (eventCards.length >= 1) {
-            for (var i = 0; i < eventCards.length; i++) {
-                var eventCard = eventCards[i];
-                var description = eventCard.getAttribute('aria-label');
-                const event = parseMeetingDescription(description);
-                if (event != null) {
-                    events.push(event)
+    function gatherEventIds() {
+        return new Promise((resolve, reject) => {
+            console.log("Identifying calendar indexedDb name");
+            const calendarDbName = JSON.parse(localStorage.getItem('ts.indexDbs')).filter(({name}) => (name.startsWith("skypexspaces-calendar-")))[0].name;
+            console.log(`Found calendar db ${calendarDbName}; opening...`);
+            const calendarDb = window.indexedDB.open(calendarDbName);
+            let calendarEventsMap = {};
+            calendarDb.onsuccess = function () {
+                console.log("Querying for events...");
+                const calendarEventsQuery = calendarDb.result.transaction("CalendarEvents").objectStore("CalendarEvents").get("W7");
+                // wait for it
+                calendarEventsQuery.onsuccess = function () {
+                    console.log("Processing events for IDs...");
+                    const eventsCache = calendarEventsQuery.result.data.calendarEventsCacheV2;
+                    const groupList = [...eventsCache.allDayEvents, ...eventsCache.inDayEvents, ...eventsCache.recurrenceEvents];
+                    for (var g = 0; g < groupList.length; g++) {
+                        const eventsGroup = groupList[g];
+                        for (var e = 0; e < eventsGroup.events.length; e++) {
+                            const cacheEvent = eventsGroup.events[e];
+                            const objectId = cacheEvent.objectId;
+                            const eventData = cacheEvent.skypeTeamsDataObj;
+                            if (eventData && eventData.cid && objectId) {
+                                console.log(`Found objectId for ${cacheEvent.subject} at ${cacheEvent.startTime}`);
+                                calendarEventsMap[objectId] = eventData.cid;
+                            } else {
+                                console.log(`No objectId for ${cacheEvent.subject} at ${cacheEvent.startTime}`);
+                            }
+                        }
+                    }
+                    console.log(`Mapped ${calendarEventsMap.length} event ids...`);
+                    resolve(calendarEventsMap);
                 }
             }
-            console.log("Found", events);
-            createBucket("aw-watcher-teams");
-            postEvents("aw-watcher-teams", events);
-        } else {
-            setTimeout(detectMeetings, 200);
-        }
-    };
-    detectCalls();
+        });
+    }
+    function gatherMeetings(promise) {
+        function doGather(resolve, reject) {
+            console.log("Screen scraping events...");
+            var eventCards = document.querySelectorAll("div[aria-label='Calendar grid view'] div[aria-label][class*='components-calendar-event-card']");
+            let events = [];
+            if (eventCards.length >= 1) {
+                console.log("Processing events...");
+                for (var i = 0; i < eventCards.length; i++) {
+                    const eventCard = eventCards[i];
+                    const eventId = eventCard.getAttribute('data-tid');
+                    const description = eventCard.getAttribute('aria-label');
+                    let event = parseMeetingDescription(description);
+                    if (event !== null) {
+                        event.objectId = eventId;
+                        events.push(event);
+                    }
+                    resolve(events);
+                }
+            } else {
+                console.log("Let's try again...");
+                setTimeout(( )=> { console.log("Timeout reached"); doGather(resolve, reject); }, 200);
+            }
+        };
+        return new Promise((resolve, reject) => { doGather(resolve, reject); });
+    }
+    function detectMeetings() {
+        console.log("Navigating to Calendar page...");
+        window.location.href = "https://teams.microsoft.com/_#/calendarv2";
+        return new Promise((resolve, reject) => {
+            Promise.all([gatherEventIds(), gatherMeetings()]).then(([eventIdMap, calendarEvents]) => {
+                let activityWatchEvents = [];
+                for (var i = 0; i < calendarEvents.length; i++) {
+                    let event = calendarEvents[i];
+                    if (event.objectId) {
+                        const cid = eventIdMap[event.objectId];
+                        if (cid) {
+                            event.data.url = `https://teams.microsoft.com/_#/conversations/${cid}?ctx=chat`
+                        }
+                        delete event.objectId;
+                    }
+                    activityWatchEvents.push(event);
+                }
+                console.log("Found Teams events to send to ActivityWatch:", activityWatchEvents);
+                console.log("Completed processing events");
+                resolve(activityWatchEvents);
+            });
+        });
+    }
+    let calls = [], meetings = [];
+    detectCalls().then(detectedCalls => {
+        calls.push(...detectedCalls);
+        return detectMeetings();
+    }).then(detectedMeetings => {
+        meetings.push(...detectedMeetings);
+        let teamsEvents = [...calls, ...meetings];
+        teamsEvents.sort((a, b) => { Date.parse(a.timestamp) - Date.parse(b.timestamp); } );
+        console.log(`Sending combined data to teams ($teamsEvents.length} events)`);
+        createBucket("aw-watcher-teams");
+        postEvents("aw-watcher-teams", teamsEvents);
+        console.log("Completed teams watcher update");
+    })
 })();
