@@ -220,6 +220,56 @@
             });
         });
     }
+    function removeOverlaps(events) {
+        // removes overlaps between events, letting calls take priority over meetings (as their times are more accurate)
+        let lastEvent = null;
+        let lastStart = null;
+        let lastEnd = null;
+        let lastType = null;
+        console.log("Removing overlaps");
+        for (var i = 0; i < events.length; i++) {
+            let thisEvent = events[i];
+            let thisStart = new Date(thisEvent.timestamp).getTime();
+            let thisEnd = thisStart + thisEvent.duration * 1000;
+            let thisType = thisEvent.data ? (thisEvent.data.caller ? 'call' : 'meeting') : null
+            if (lastEnd !== null && lastEvent !== null) {
+                if (thisStart < lastEnd) {
+                    // we always prioritize calls over meetings, but otherwise the future over the past
+                    console.log("Start", thisEvent.timestamp, "is before end", new Date(lastEnd).toISOString());
+                    console.log("Comparing", lastEvent, "and", thisEvent);
+                    if (thisType === 'meeting' && lastType === 'call') {
+                        thisStart = lastEnd;
+                        let newThisEvent = {...thisEvent};
+                        newThisEvent.timestamp = new Date(thisStart).toISOString();
+                        newThisEvent.duration = (thisEnd - thisStart) / 1000;
+                        console.log("Last boundary wins; this event should start later at", newThisEvent);
+                        events[i] = thisEvent = newThisEvent;
+                    } else if (thisType === 'call' && thisEvent.duration < 30) {
+                        console.log("This call is too short to care, no change");
+                        continue;
+                    } else if (thisType === 'meeting' && lastType === 'meeting') {
+                        console.log("Assuming ActivityWatch will handle overlapping scheduled meetings");
+                    } else if ((thisEnd - lastStart) / 1000 / lastEvent.duration < 0.25) {
+                        // this event doesn't go more than 25% of the way into the last meeting; probably joined that meeting late
+                        let newLastEvent = {...lastEvent};
+                        lastStart = new Date(thisEnd).getTime();
+                        newLastEvent.timestamp = new Date(lastStart).toISOString();
+                        newLastEvent.duration = (lastEnd - lastStart) / 1000;
+                        console.log("This boundary wins, last event should start later at", newLastEvent);
+                        // in theory this could trigger a cascade, resort, and reevaluate. But not doing that as it's complex
+                        events[i-1] = lastEvent = newLastEvent;
+                    } else {
+                        let newLastEvent = {...lastEvent};
+                        lastEnd = new Date(thisStart).getTime();
+                        newLastEvent.duration = (lastEnd - lastStart) / 1000;
+                        console.log("This boundary wins, last event should shorten to", newLastEvent);
+                        events[i-1] = lastEvent = newLastEvent;
+                    }
+                }
+            }
+            [ lastEvent, lastStart, lastEnd, lastType ] = [ thisEvent, thisStart, thisEnd, thisType ]
+        }
+    }
     let calls = [], meetings = [];
     detectCalls().then(detectedCalls => {
         calls.push(...detectedCalls);
@@ -227,7 +277,13 @@
     }).then(detectedMeetings => {
         meetings.push(...detectedMeetings);
         let teamsEvents = [...calls, ...meetings];
-        teamsEvents.sort((a, b) => { Date.parse(a.timestamp) - Date.parse(b.timestamp); } );
+        teamsEvents.sort((a, b) => {
+            const startDiff = Date.parse(a.timestamp) - Date.parse(b.timestamp);
+            if (startDiff !== 0) return startDiff;
+            return a.duration - b.duration;
+        } );
+        console.log("Combined events", teamsEvents);
+        removeOverlaps(teamsEvents);
         console.log(`Sending combined data to teams ($teamsEvents.length} events)`);
         createBucket("aw-watcher-teams");
         postEvents("aw-watcher-teams", teamsEvents);
