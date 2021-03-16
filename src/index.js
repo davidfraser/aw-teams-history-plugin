@@ -141,6 +141,11 @@
         return new Promise((resolve, reject) => {
             console.log("Identifying calendar indexedDb name");
             const calendarDbName = JSON.parse(localStorage.getItem('ts.indexDbs')).filter(({name}) => (name.startsWith("skypexspaces-calendar-")))[0].name;
+            if (!calendarDbName) {
+                console.warn("Could not find calendar db; will not resolve calendar IDs");
+                resolve({});
+                return;
+            }
             console.log(`Found calendar db ${calendarDbName}; opening...`);
             const calendarDb = window.indexedDB.open(calendarDbName);
             let calendarEventsMap = {};
@@ -150,7 +155,12 @@
                 // wait for it
                 calendarEventsQuery.onsuccess = function () {
                     console.log("Processing events for IDs...");
-                    const eventsCache = calendarEventsQuery.result.data.calendarEventsCacheV2;
+                    const eventsCache = calendarEventsQuery.result ? calendarEventsQuery.result.data.calendarEventsCacheV2 : null;
+                    if (eventsCache === null) {
+                        console.warn("Could not query calendar events");
+                        resolve({});
+                        return;
+                    }
                     const groupList = [...eventsCache.allDayEvents, ...eventsCache.inDayEvents, ...eventsCache.recurrenceEvents];
                     for (var g = 0; g < groupList.length; g++) {
                         const eventsGroup = groupList[g];
