@@ -335,7 +335,7 @@
                 teamsToActivityWatch().then(() => {
                     console.log("Completed teams watcher update");
                     console.log("Navigating to ActivityWatch interface");
-                    window.location.href = "http://localhost:5600/#/timeline";
+                    window.location.href = `${baseURL}/#/timeline`;
                 });
             });
         } else {
