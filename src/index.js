@@ -76,9 +76,9 @@
     function detectCalls() {
         window.location.href = "https://teams.microsoft.com/_#/calls/all-calls";
         console.log("Navigating to calls screen...")
-        var items = document.querySelectorAll("all-call-list div.td-call-list-container div.item-row");
         function gatherCalls(resolve, reject) {
             console.log("Looking for call items...");
+            var items = document.querySelectorAll("all-call-list div.td-call-list-container div.item-row");
             var calls = [];
             if (items.length >= 1) {
                 console.log("Retrieving calls...");
