@@ -280,26 +280,52 @@
             [ lastEvent, lastStart, lastEnd, lastType ] = [ thisEvent, thisStart, thisEnd, thisType ]
         }
     }
-    let calls = [], meetings = [];
-    detectCalls().then(detectedCalls => {
-        calls.push(...detectedCalls);
-        return detectMeetings();
-    }).then(detectedMeetings => {
-        meetings.push(...detectedMeetings);
-        let teamsEvents = [...calls, ...meetings];
-        teamsEvents.sort((a, b) => {
-            const startDiff = Date.parse(a.timestamp) - Date.parse(b.timestamp);
-            if (startDiff !== 0) return startDiff;
-            return a.duration - b.duration;
-        } );
-        console.log("Combined events", teamsEvents);
-        removeOverlaps(teamsEvents);
-        console.log(`Sending combined data to teams ($teamsEvents.length} events)`);
-        createBucket("aw-watcher-teams");
-        postEvents("aw-watcher-teams", teamsEvents).then(() => {
-            console.log("Completed teams watcher update");
-            console.log("Navigating to ActivityWatch interface");
-            window.location.href = "http://localhost:5600/#/timeline";
+    function teamsToActivityWatch() {
+        console.log("Collecting information from Teams")
+        let calls = [], meetings = [];
+        detectCalls().then(detectedCalls => {
+            calls.push(...detectedCalls);
+            return detectMeetings();
+        }).then(detectedMeetings => {
+            meetings.push(...detectedMeetings);
+            let teamsEvents = [...calls, ...meetings];
+            teamsEvents.sort((a, b) => {
+                const startDiff = Date.parse(a.timestamp) - Date.parse(b.timestamp);
+                if (startDiff !== 0) return startDiff;
+                return a.duration - b.duration;
+            });
+            console.log("Combined events", teamsEvents);
+            removeOverlaps(teamsEvents);
+            console.log(`Sending combined data to teams ($teamsEvents.length} events)`);
+            createBucket("aw-watcher-teams");
+            postEvents("aw-watcher-teams", teamsEvents).then(() => {
+                console.log("Completed teams watcher update");
+                console.log("Navigating to ActivityWatch interface");
+                window.location.href = "http://localhost:5600/#/timeline";
+            });
+        })
+    }
+    function whenTeamsLoads() {
+        console.log("Waiting for Teams to load...")
+        function waitForTeamsLoad(resolve, reject) {
+            var items = document.querySelectorAll("div.teams-title");
+            if (items.length > 0) {
+                console.log("Teams has loaded")
+                resolve();
+            } else {
+                console.log("Waiting for Teams to load...")
+                setTimeout(() => {
+                    waitForTeamsLoad(resolve, reject);
+                }, 200);
+            }
+        }
+        return new Promise((resolve, reject) => {
+            waitForTeamsLoad(resolve, reject);
         });
-    })
+    }
+    window.addEventListener('load', function() {
+        if (window.location.href.contains('activity-watch-plugin')) {
+            whenTeamsLoads().then(() => { teamsToActivityWatch() });
+        }
+    });
 })();

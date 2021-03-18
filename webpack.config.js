@@ -6,8 +6,7 @@ module.exports = {
         headers: {
             match: "https://teams.microsoft.com/*",
             grant: "GM_xmlhttpRequest",
-            connect: "*",
-            "run-at": "context-menu"
+            connect: "*"
         }
     })
   ]
