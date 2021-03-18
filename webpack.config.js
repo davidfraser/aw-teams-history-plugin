@@ -5,7 +5,7 @@ module.exports = {
     new WebpackUserscript({
         headers: {
             match: "https://teams.microsoft.com/*",
-            grant: "GM_xmlhttpRequest",
+            grant: ["GM_xmlhttpRequest", "GM_registerMenuCommand"],
             connect: "*"
         }
     })

@@ -283,7 +283,7 @@
     function teamsToActivityWatch() {
         console.log("Collecting information from Teams")
         let calls = [], meetings = [];
-        detectCalls().then(detectedCalls => {
+        return detectCalls().then(detectedCalls => {
             calls.push(...detectedCalls);
             return detectMeetings();
         }).then(detectedMeetings => {
@@ -298,11 +298,7 @@
             removeOverlaps(teamsEvents);
             console.log(`Sending combined data to teams ($teamsEvents.length} events)`);
             createBucket("aw-watcher-teams");
-            postEvents("aw-watcher-teams", teamsEvents).then(() => {
-                console.log("Completed teams watcher update");
-                console.log("Navigating to ActivityWatch interface");
-                window.location.href = "http://localhost:5600/#/timeline";
-            });
+            return postEvents("aw-watcher-teams", teamsEvents);
         })
     }
     function whenTeamsLoads() {
@@ -323,9 +319,27 @@
             waitForTeamsLoad(resolve, reject);
         });
     }
+    function registerContextMenu() {
+        whenTeamsLoads().then(() => {
+            console.log("Registering Context Menu")
+            GM_registerMenuCommand("Run ActivityWatch Teams History Plugin", function() {
+                teamsToActivityWatch().then(() => {
+                    console.log("Completed teams watcher update");
+                })
+            }, "w");
+        })
+    }
     window.addEventListener('load', function() {
         if (window.location.href.contains('activity-watch-plugin')) {
-            whenTeamsLoads().then(() => { teamsToActivityWatch() });
+            whenTeamsLoads().then(() => {
+                teamsToActivityWatch().then(() => {
+                    console.log("Completed teams watcher update");
+                    console.log("Navigating to ActivityWatch interface");
+                    window.location.href = "http://localhost:5600/#/timeline";
+                });
+            });
+        } else {
+            registerContextMenu();
         }
     });
 })();
