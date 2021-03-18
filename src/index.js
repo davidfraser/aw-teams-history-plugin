@@ -296,7 +296,10 @@
         removeOverlaps(teamsEvents);
         console.log(`Sending combined data to teams ($teamsEvents.length} events)`);
         createBucket("aw-watcher-teams");
-        postEvents("aw-watcher-teams", teamsEvents);
-        console.log("Completed teams watcher update");
+        postEvents("aw-watcher-teams", teamsEvents).then(() => {
+            console.log("Completed teams watcher update");
+            console.log("Navigating to ActivityWatch interface");
+            window.location.href = "http://localhost:5600/#/timeline";
+        });
     })
 })();
