@@ -65,7 +65,7 @@
         const {callType, callLength, callDate} = textParams;
         const displayName = normalizeName(textParams.displayName);
         return {
-            timestamp: new Date(callDate).toISOString(),
+            timestamp: parseDate(callDate).toISOString(),
             duration: durationToSeconds(callLength),
             data: {
                 caller: displayName,
