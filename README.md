@@ -40,9 +40,13 @@ You can then paste the contents into the Tampermonkey dashboard editor.
 * Ensure that you have the ActivityWatch server running locally. 
 * Log in to the [Microsoft Teams web interface](https://teams.microsoft.com/go#)
 * Click on the Tampermonkey extension icon, and under *aw-teams-history-plugin*
-  select *Run ActivityWatch Teams History Plugin* (or use the `W` keyboard shortcut)
+  select *Run ActivityWatch Teams History Plugin* (or use the `W` keyboard shortcut).
+  
+  ![Extension Screenshot](screenshots/executing-userscript.png)
 * Navigate to your local [ActivityWatch web interface](http://localhost:5600/#/timeline)
   (or [test interface](http://localhost:5666/#/timeline)) and see your teams activity there.
+  
+  ![Events Screenshot](screenshots/timeline-events.png)
   
 ### Bookmark for auto-navigation
 
