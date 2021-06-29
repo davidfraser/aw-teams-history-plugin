@@ -17,6 +17,7 @@ module.exports = env => {
             alias: {
                 'aw-config$': path.resolve(__dirname, 'src', isProduction ? 'aw-prod-config.js' : 'aw-dev-config.js'),
             }
+        },
+        devtool: 'cheap-source-map',
     }
-  }
 }
