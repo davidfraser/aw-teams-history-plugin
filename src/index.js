@@ -1,6 +1,6 @@
 (function() {
     'use strict';
-    const testing = true;
+    const testing = require('aw-config').testing;
     const baseURL = testing ? 'http://localhost:5666' : 'http://localhost:5600';
     const reTime = /^(?:(?<h>[0-9]+)h\s*)?(?:(?<m>[0-9]+)m\s*)?(?:(?<s>[0-9]+)s\s*)?$/;
     const reName = /^(?<s>[A-Z]+\s*)(?<f>[A-Za-z]+\s*)$/;
