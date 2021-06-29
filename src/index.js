@@ -296,7 +296,7 @@
             });
             console.log("Combined events", teamsEvents);
             removeOverlaps(teamsEvents);
-            console.log(`Sending combined data to teams ($teamsEvents.length} events)`);
+            console.log(`Sending combined data to teams (${teamsEvents.length} events)`);
             createBucket("aw-watcher-teams");
             return postEvents("aw-watcher-teams", teamsEvents);
         })
