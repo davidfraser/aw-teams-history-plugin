@@ -151,10 +151,10 @@
             let calendarEventsMap = {};
             calendarDb.onsuccess = function () {
                 console.log("Querying for events...");
-                const calendarEventsQuery = calendarDb.result.transaction("CalendarEvents").objectStore("CalendarEvents").get("W7");
-                // wait for it
-                calendarEventsQuery.onsuccess = function () {
-                    console.log("Processing events for IDs...");
+                const calendarObjectStore = calendarDb.result.transaction("CalendarEvents").objectStore("CalendarEvents");
+                let weeksHandled = [], weeksToHandle = [];
+                const handleCalendarWeek = function(calendarEventsQuery, calendarWeek) { return function() {
+                    console.log(`Processing events for IDs in week ${calendarWeek}...`);
                     const eventsCache = calendarEventsQuery.result ? calendarEventsQuery.result.data.calendarEventsCacheV2 : null;
                     if (eventsCache === null) {
                         console.warn("Could not query calendar events");
@@ -176,8 +176,23 @@
                             }
                         }
                     }
-                    console.log(`Mapped ${calendarEventsMap.length} event ids...`);
-                    resolve(calendarEventsMap);
+                    console.log(`Mapped ${calendarEventsMap.length} event ids for week ${calendarWeek}...`);
+                    weeksHandled.push(calendarWeek);
+                    if (weeksHandled.length === weeksToHandle.length) {
+                        resolve(calendarEventsMap);
+                    }
+                } }
+                const calendarKeysQuery = calendarObjectStore.getAllKeys();
+                calendarKeysQuery.onsuccess = function() {
+                    console.log(`Found the following keys on calendar db: ${calendarKeysQuery.result}`);
+                    for (let key of calendarKeysQuery.result) {
+                        if (!key.startsWith('W')) continue;
+                        weeksToHandle.push(key);
+                    }
+                    for (let week of weeksToHandle) {
+                        const calendarEventsQuery = calendarObjectStore.get(week);
+                        calendarEventsQuery.onsuccess = handleCalendarWeek(calendarEventsQuery, week);
+                    }
                 }
             }
         });
