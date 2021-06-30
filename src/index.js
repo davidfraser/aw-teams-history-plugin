@@ -215,8 +215,8 @@
                         event.objectId = eventId;
                         events.push(event);
                     }
-                    resolve(events);
                 }
+                resolve(events);
             } else {
                 console.log("Let's try again...");
                 setTimeout(( )=> { console.log("Timeout reached"); doGather(resolve, reject); }, 200);
