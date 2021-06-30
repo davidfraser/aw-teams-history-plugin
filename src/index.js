@@ -5,6 +5,7 @@
     const reTime = /^(?:(?<h>[0-9]+)h\s*)?(?:(?<m>[0-9]+)m\s*)?(?:(?<s>[0-9]+)s\s*)?$/;
     const reName = /^(?<s>[A-Z]+\s*)(?<f>[A-Za-z]+\s*)$/;
     const reDate = /^(?<title>.*), (?<start>.* [AP]M) to (?<end>.* [AP]M), (?:(?<location>location: .*), )?(?<info>.*)$/
+    const reChannel = /^\s*(?<team>.*) > (?<channel>.*)\s*$/;
     function getText(item, selector) {
         var spanNode = item.querySelector(selector);
         return spanNode ? spanNode.innerText : null;
@@ -171,7 +172,7 @@
                                 const eventData = cacheEvent.skypeTeamsDataObj;
                                 if (eventData && eventData.cid && objectId) {
                                     console.log(`Found objectId for ${cacheEvent.subject} at ${cacheEvent.startTime}`);
-                                    calendarEventsMap[objectId] = eventData.cid;
+                                    calendarEventsMap[objectId] = eventData;
                                 } else {
                                     console.log(`No objectId for ${cacheEvent.subject} at ${cacheEvent.startTime}`);
                                 }
@@ -200,7 +201,7 @@
         });
     }
     function gatherMeetings(promise) {
-        function doGather(resolve, reject) {
+        async function doGather(resolve, reject) {
             console.log("Screen scraping events...");
             var eventCards = document.querySelectorAll("div[aria-label='Calendar grid view'] div[aria-label][class*='components-calendar-event-card']");
             let events = [];
@@ -211,7 +212,36 @@
                     const eventId = eventCard.getAttribute('data-tid');
                     const description = eventCard.getAttribute('aria-label');
                     let event = parseMeetingDescription(description);
+                    function waitForCalendarPeek(resolve, reject) {
+                        const calendarPeek = document.querySelectorAll("div.ms-Callout-main div[class*='container-peek-container']")
+                        if (calendarPeek.length > 0) {
+                            const calendarSubject = getText(calendarPeek[0], "div[data-tid='calv2-peek-subject']")
+                            if (calendarSubject.trim() === event.data.title.trim()) {
+                                let peekInfo = {}
+                                const meetingChannel = getText(calendarPeek[0], "div[data-tid='calv2-peek-channel']")
+                                console.log(`Found meeting in channel ${meetingChannel}`)
+                                const channelInfo = meetingChannel ? meetingChannel.match(reChannel) : null
+                                if (channelInfo && channelInfo.groups) {
+                                    peekInfo.channel = channelInfo.groups.channel;
+                                    peekInfo.team = channelInfo.groups.team;
+                                }
+                                const chatButton = calendarPeek[0].querySelectorAll("div[data-tid='calv2-peek-chat-with-participants'] ")
+
+                                resolve(peekInfo);
+                                return
+                            }
+                        }
+                        console.log("Waiting for Calendar Peek...")
+                        setTimeout(() => {
+                            waitForCalendarPeek(resolve, reject);
+                        }, 200);
+                    }
                     if (event !== null) {
+                        eventCard.click()
+                        const peekInfo = await new Promise((resolve, reject) => {
+                            waitForCalendarPeek(resolve, reject);
+                        });
+                        event.peekInfo = peekInfo;
                         event.objectId = eventId;
                         events.push(event);
                     }
@@ -233,9 +263,13 @@
                 for (var i = 0; i < calendarEvents.length; i++) {
                     let event = calendarEvents[i];
                     if (event.objectId) {
-                        const cid = eventIdMap[event.objectId];
-                        if (cid) {
-                            event.data.url = `https://teams.microsoft.com/_#/conversations/${cid}?ctx=chat`
+                        const eventData = eventIdMap[event.objectId];
+                        if (eventData && eventData.cid) {
+                            if (event && event.peekInfo && event.peekInfo.channel) {
+                                event.data.url = `https://teams.microsoft.com/_#/conversations/${event.peekInfo.channel}?threadId=${eventData.cid}&messageId=${eventData.mid}&ctx=channel`
+                            } else {
+                                event.data.url = `https://teams.microsoft.com/_#/conversations/${eventData.cid}?ctx=chat`
+                            }
                         }
                         delete event.objectId;
                     }
