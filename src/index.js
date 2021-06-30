@@ -153,35 +153,37 @@
                 console.log("Querying for events...");
                 const calendarObjectStore = calendarDb.result.transaction("CalendarEvents").objectStore("CalendarEvents");
                 let weeksHandled = [], weeksToHandle = [];
-                const handleCalendarWeek = function(calendarEventsQuery, calendarWeek) { return function() {
-                    console.log(`Processing events for IDs in week ${calendarWeek}...`);
-                    const eventsCache = calendarEventsQuery.result ? calendarEventsQuery.result.data.calendarEventsCacheV2 : null;
-                    if (eventsCache === null) {
-                        console.warn("Could not query calendar events");
-                        resolve({});
-                        return;
-                    }
-                    const groupList = [...eventsCache.allDayEvents, ...eventsCache.inDayEvents, ...eventsCache.recurrenceEvents];
-                    for (var g = 0; g < groupList.length; g++) {
-                        const eventsGroup = groupList[g];
-                        for (var e = 0; e < eventsGroup.events.length; e++) {
-                            const cacheEvent = eventsGroup.events[e];
-                            const objectId = cacheEvent.objectId;
-                            const eventData = cacheEvent.skypeTeamsDataObj;
-                            if (eventData && eventData.cid && objectId) {
-                                console.log(`Found objectId for ${cacheEvent.subject} at ${cacheEvent.startTime}`);
-                                calendarEventsMap[objectId] = eventData.cid;
-                            } else {
-                                console.log(`No objectId for ${cacheEvent.subject} at ${cacheEvent.startTime}`);
+                const handleCalendarWeek = function(calendarEventsQuery, calendarWeek) {
+                    return function () {
+                        console.log(`Processing events for IDs in week ${calendarWeek}...`);
+                        const eventsCache = calendarEventsQuery.result ? calendarEventsQuery.result.data.calendarEventsCacheV2 : null;
+                        if (eventsCache === null) {
+                            console.warn("Could not query calendar events");
+                            resolve({});
+                            return;
+                        }
+                        const groupList = [...eventsCache.allDayEvents, ...eventsCache.inDayEvents, ...eventsCache.recurrenceEvents];
+                        for (var g = 0; g < groupList.length; g++) {
+                            const eventsGroup = groupList[g];
+                            for (var e = 0; e < eventsGroup.events.length; e++) {
+                                const cacheEvent = eventsGroup.events[e];
+                                const objectId = cacheEvent.objectId;
+                                const eventData = cacheEvent.skypeTeamsDataObj;
+                                if (eventData && eventData.cid && objectId) {
+                                    console.log(`Found objectId for ${cacheEvent.subject} at ${cacheEvent.startTime}`);
+                                    calendarEventsMap[objectId] = eventData.cid;
+                                } else {
+                                    console.log(`No objectId for ${cacheEvent.subject} at ${cacheEvent.startTime}`);
+                                }
                             }
                         }
+                        console.log(`Mapped ${calendarEventsMap.length} event ids for week ${calendarWeek}...`);
+                        weeksHandled.push(calendarWeek);
+                        if (weeksHandled.length === weeksToHandle.length) {
+                            resolve(calendarEventsMap);
+                        }
                     }
-                    console.log(`Mapped ${calendarEventsMap.length} event ids for week ${calendarWeek}...`);
-                    weeksHandled.push(calendarWeek);
-                    if (weeksHandled.length === weeksToHandle.length) {
-                        resolve(calendarEventsMap);
-                    }
-                } }
+                }
                 const calendarKeysQuery = calendarObjectStore.getAllKeys();
                 calendarKeysQuery.onsuccess = function() {
                     console.log(`Found the following keys on calendar db: ${calendarKeysQuery.result}`);
