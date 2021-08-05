@@ -214,9 +214,10 @@
                     let event = parseMeetingDescription(description);
                     function waitForCalendarPeek(resolve, reject) {
                         const calendarPeek = document.querySelectorAll("div.ms-Callout-main div[class*='container-peek-container']")
+                        const expectedSubject = event.data.title.trim().replace(/ +/g, ' ') // double spaces are combined
                         if (calendarPeek.length > 0) {
                             const calendarSubject = getText(calendarPeek[0], "div[data-tid='calv2-peek-subject']")
-                            if (calendarSubject.trim() === event.data.title.trim()) {
+                            if (calendarSubject.trim() === expectedSubject) {
                                 let peekInfo = {}
                                 const meetingChannel = getText(calendarPeek[0], "div[data-tid='calv2-peek-channel']")
                                 console.log(`Found meeting in channel ${meetingChannel}`)
