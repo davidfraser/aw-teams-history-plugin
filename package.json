@@ -7,18 +7,16 @@
   "author": "David Fraser <david.fraser@hexagon.com>",
   "license": "MIT",
   "scripts": {
-    "build:development": "node_modules/.bin/webpack.cmd --node-env development",
+    "build:development": "webpack --node-env development",
     "clip:development": "npm run build:development && (type dist\\main.user.js | clip) && echo now paste clipboard into TamperMonkey",
-    "build:production": "node_modules/.bin/webpack.cmd --node-env production",
+    "build:production": "webpack --node-env production",
     "clip:production": "npm run build:production && (type dist\\main.user.js | clip) && echo now paste clipboard into TamperMonkey",
     "build": "npm run build:production",
     "clip": "npm run clip:production"
   },
-  "dependencies": {
-  },
   "devDependencies": {
-    "webpack": "4.46.0",
+    "webpack": "^5.111.1",
     "webpack-cli": "4.5.0",
-    "webpack-userscript": "2.5.6"
+    "webpack-userscript": "^3.2.3"
   }
 }
